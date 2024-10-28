@@ -1,4 +1,6 @@
 temp
 __pycache__
+exp_colab
+dataset
 *.png
 .DS_Store
