@@ -1,9 +1,7 @@
 from typing import List
 import os
-
 from fastapi import FastAPI, File, UploadFile
 import aiofiles
-
 from vistec_ser.inference.inference import infer_sample, setup_server
 
 config_path = "config.yaml"
@@ -29,7 +27,6 @@ async def predict(audios: List[UploadFile] = File(...)):
 
     NOTE: note that this might bug if > 1 requests are sent with the same file name
     """
-    # save files
     audio_paths = []
     for audio in audios:
         print(audio.filename)
@@ -40,7 +37,6 @@ async def predict(audios: List[UploadFile] = File(...)):
         audio_paths.append(save_name)
         assert os.path.exists(save_name)
 
-    # extract features
     inference_loader = thaiser_module.extract_feature(audio_paths)
     inference_results = [infer_sample(model, sample, emotions=thaiser_module.emotions)
                          for sample in inference_loader]

@@ -102,8 +102,28 @@ def display_server_response(response):
             print("Probabilities:")
             for emotion, prob in item['prob'].items():
                 print(f"  {emotion}: {prob}%")
+        stressed_or_not(json_response)
     except Exception as e:
         print(f"Error displaying server response: {e}")
+
+def stressed_or_not(response):
+    """Determine if the user is stressed based on emotion probabilities."""
+    try:
+        probabilities = response[0]['prob']
+        
+        stress_related_emotions = ['anger', 'sadness', 'frustration']
+        max_emotion = max(probabilities, key=probabilities.get)
+        
+        if max_emotion in stress_related_emotions:
+            print("Stressed: True")
+            return True
+        else:
+            print("Stressed: False")
+            return False
+    except Exception as e:
+        print(f"Error processing stress status: {e}")
+        return None
+
 
 if __name__ == "__main__":
     start_recording_session()

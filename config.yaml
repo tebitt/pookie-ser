@@ -7,8 +7,8 @@ thaiser:
 
 feature:
   sampling_rate: 16000
-  num_mel_bins: 80
-  frame_length: 50
+  num_mel_bins: 128
+  frame_length: 25
   frame_shift: 10
   max_len: 3
   center_feats: True
@@ -28,5 +28,5 @@ trainer:
 
 inference:
   temp_dir: /Users/tebit/pookie-ser/temp
-  checkpoint_path: /Users/tebit/pookie-ser/default.ckpt
+  checkpoint_path: /Users/tebit/pookie-ser/128mel25fr.ckpt
 #  gpus: 0
