@@ -2,6 +2,7 @@ import subprocess
 import requests
 import os
 from pydub import AudioSegment
+import cv2
 
 RATE = 16000
 CHANNELS = 2
