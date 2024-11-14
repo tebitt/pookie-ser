@@ -1,14 +1,22 @@
 import cv2
 import numpy as np
 import time
+import threading
 import random
 import math
+import multiprocessing
+import os
+from fastapi import FastAPI
+import atexit
 
 # Define constants
 BGCOLOR = (0, 0, 0)        # Background color (black)
 MAINCOLOR = (0, 255, 0)    # Main eye color (green)
 HAPPYCOLOR = (255, 255, 0)   # Eye color during happiness mode (cyan)
 SADCOLOR = (0, 255, 255)     # Eye color during sadness mode (yellow)
+
+app = FastAPI()
+
 
 class RoboEyes:
     def __init__(self, screenWidth=640, screenHeight=480, fps=50):
@@ -48,7 +56,7 @@ class RoboEyes:
         self.sadness_phase = 0
 
         # Animation timers for blinking
-        self.blink_duration = random.uniform(0.2, 0.4)  # Randomize blink duration
+        self.blink_duration = random.uniform(0.1, 0.4)  # Randomize blink duration
         self.last_blink_time = time.time()
         self.blinking = False
 
@@ -60,11 +68,17 @@ class RoboEyes:
         self.idle_interval = random.uniform(2, 5)  # Random idle movement interval
         self.last_idle = time.time()
 
-        self.init_window()
-
     def init_window(self):
         self.window_name = 'RoboEyes'
         cv2.namedWindow(self.window_name)
+
+    def express_happiness(self):
+        self.happiness_mode = True
+        self.happiness_start_time = time.time()
+
+    def express_sadness(self):
+        self.sadness_mode = True
+        self.sadness_start_time = time.time()
 
     def draw_eyes(self, frame):
         # Determine if happiness mode is active
@@ -137,9 +151,6 @@ class RoboEyes:
                          (self.eyeR_x + current_eye_size[0], self.eyeR_y), current_eye_color, 5)
 
     def blink(self):
-        # Skip blinking if in happiness mode
-        if self.happiness_mode:
-            return
         
         current_time = time.time()
 
@@ -176,80 +187,125 @@ class RoboEyes:
         current_time = time.time()
 
         if self.happiness_mode:
-            # Update happiness phase based on the elapsed time
             elapsed_time = current_time - self.happiness_start_time
-            if elapsed_time < self.happiness_duration / 3:
-                self.happiness_phase = 0  # Full circle
-            elif elapsed_time < 2 * self.happiness_duration / 3:
-                self.happiness_phase = 1  # Half-circle
+            if elapsed_time < self.happiness_duration / 2:
+                self.happiness_phase = 0  # Teary eyes
+            elif elapsed_time < self.happiness_duration / 2 + random.uniform(1, 2) and self.happiness_phase != 2:
+                self.happiness_phase = 1  # Half-line with tear
             else:
-                self.happiness_phase = 2  # Back to full circle
-            
-            # If happiness duration has passed, end happiness mode
-            if elapsed_time >= self.happiness_duration:
+                self.happiness_phase = 2  # Back to teary eyes
+
+        if elapsed_time >= self.happiness_duration:
+                with open ('temp/current_mood.txt', 'w') as f:
+                    f.write('neutral')
+                    f.close()
                 self.happiness_mode = False
+
+
 
     def handle_sadness_mode(self):
         current_time = time.time()
 
         if self.sadness_mode:
-            # Update happiness phase based on the elapsed time
             elapsed_time = current_time - self.sadness_start_time
-            if elapsed_time < self.sadness_duration / 3:
+            if elapsed_time < self.sadness_duration / 2:
                 self.sadness_phase = 0  # Teary eyes
-            elif elapsed_time < 2 * self.sadness_duration / 3:
+            elif elapsed_time < self.sadness_duration / 2 + random.uniform(0.1, 0.4) and self.sadness_phase != 2:
                 self.sadness_phase = 1  # Half-line with tear
             else:
                 self.sadness_phase = 2  # Back to teary eyes
-            
-            # If happiness duration has passed, end happiness mode
-            if elapsed_time >= self.sadness_duration:
+
+        if elapsed_time >= self.sadness_duration:
+                with open ('temp/current_mood.txt', 'w') as f:
+                    f.write('neutral')
+                    f.close()
                 self.sadness_mode = False
 
-    def update(self):
+    def update(self, status_queue):
         # Create a blank black screen
         frame = np.zeros((self.screenHeight, self.screenWidth, 3), dtype=np.uint8)
 
-        # Handle animations
-        self.blink()
-
-        # Handle idle movements
-        if self.idle:
-            self.idle_movement()
-
-        # Handle happiness mode
+        self.blink()    
+        # Check for new mood status from the queue
+        if not status_queue.empty():
+            mood = status_queue.get()
+            if mood == "happiness":
+                self.happiness_mode = True
+                self.happiness_start_time = time.time()
+            elif mood == "sadness":
+                self.sadness_mode = True
+                self.sadness_start_time = time.time()        
         if self.happiness_mode:
             self.handle_happiness_mode()
-        
-        if self.sadness_mode:
+        elif self.sadness_mode:
             self.handle_sadness_mode()
-
+        else:
+            self.idle_movement()
+            
         # Draw the eyes
         self.draw_eyes(frame)
 
         # Show the frame
         cv2.imshow(self.window_name, frame)
 
-    def run(self):
+    def run(self, status_queue):
+        self.init_window()
         while True:
-            self.update()
+            self.update(status_queue)
+            cv2.waitKey(1)
 
-            # Handle keypresses
-            key = cv2.waitKey(int(self.frameInterval * 1000)) & 0xFF
-            if key == ord('q'):  # Quit the program
-                break
-            elif key == ord('i'):  # Toggle idle mode
-                self.idle = not self.idle
-            elif key == ord('h'):  # Activate happiness mode
-                self.happiness_mode = True
-                self.happiness_start_time = time.time()  # Start the happiness timer
-            elif key == ord('s'):
-                self.sadness_mode = True
-                self.sadness_start_time = time.time()
+default_mood = 'neutral'
+with open ('temp/current_mood.txt', 'w') as f:
+    f.write(default_mood)
+    f.close()
 
-        cv2.destroyAllWindows()
+@app.get("/set_status")
+async def set_status(mood: str):
+    current_mood = read_current_mood()
+    if current_mood != mood:
+        with open ('temp/current_mood.txt', 'w') as f:
+            f.write(mood)
+            f.close()
+        status_queue.put(mood)
+        current_mood = mood
+        return {"message": f"{mood.capitalize()} mode activated"}
+    else:
+        return {"message": "Mood is already active"}
 
-# Usage
+def run_fastapi():
+    import uvicorn
+    uvicorn.run(app, port=8081)
+
+def run_eye_process(status_queue):
+    robo_eyes = RoboEyes()
+    robo_eyes.run(status_queue)
+
+def read_current_mood():
+    with open ('temp/current_mood.txt', 'r') as f:
+        current_mood = f.read()
+        f.close()
+    return current_mood
+
 if __name__ == "__main__":
-    robot_eyes = RoboEyes()
-    robot_eyes.run()
+    status_queue = multiprocessing.Queue()
+
+    # Run FastAPI server in a separate thread
+    fastapi_thread = threading.Thread(target=run_fastapi)
+    fastapi_thread.start()
+
+    # Create RoboEyes object and start the rendering process in a separate process
+    eye_process = multiprocessing.Process(target=run_eye_process, args=(status_queue,))
+    eye_process.start()
+
+def cleanup():
+    """Delete the temp/current_mood.txt file on program exit."""
+    try:
+        os.remove('temp/current_mood.txt')
+        print("Cleanup complete: Deleted temp/current_mood.txt")
+    except FileNotFoundError:
+        print("Cleanup skipped: temp/current_mood.txt not found")
+    except Exception as e:
+        print(f"Cleanup error: {e}")
+
+
+atexit.register(cleanup)
