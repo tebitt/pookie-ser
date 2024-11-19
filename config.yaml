@@ -1,8 +1,8 @@
 thaiser:
-  agreement_threshold: 0.6
+  agreement_threshold: 0.7
   mic_type: con
-  download_dir: "/Users/tebit/pookie-ser/dataset"
-  experiment_dir: "/Users/tebit/pookie-ser/dataset/exp_fold0"
+  download_dir: "/Users/tebit/pookie-backend/dataset"
+  experiment_dir: "/Users/tebit/pookie-backend/dataset/exp_fold0"
   batch_size: 64
 
 feature:
@@ -27,6 +27,6 @@ trainer:
   max_epochs: 120
 
 inference:
-  temp_dir: /Users/tebit/pookie-ser/temp
-  checkpoint_path: /Users/tebit/pookie-ser/128mel25fr.ckpt
+  temp_dir: /Users/tebit/pookie-backend/temp
+  checkpoint_path: /Users/tebit/pookie-backend/128mel25fr.ckpt
 #  gpus: 0

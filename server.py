@@ -10,6 +10,9 @@ import threading
 from queue import Queue
 import time
 
+from handler import Handler
+from eye import RoboEyes
+
 # Global objects that will be initialized in lifespan
 recorder = None
 predictor = None
@@ -103,7 +106,6 @@ class PredictionWorker:
             try:
                 # Get the next audio file from queue
                 audio_filename = self.prediction_queue.get(timeout=1)
-                print(self.prediction_queue)
 
                 # Process the audio file
                 inference_loader = self.thaiser_module.extract_feature([audio_filename])
@@ -112,8 +114,10 @@ class PredictionWorker:
                 
                 # Store the latest prediction
                 self.latest_prediction = inference_results[0] if inference_results else None
-                print(self.latest_prediction)
                 # Clean up the processed file
+                handler = Handler(self.latest_prediction, None)
+                handler.speak("test")
+                handler.move("test")
                 try:
                     os.remove(audio_filename)
                 except:
@@ -140,3 +144,7 @@ async def get_latest_prediction():
     
     prediction = predictor.get_latest_prediction()
     return {"prediction": prediction if prediction is not None else None}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run("server:app", port=8080, reload=True) 
