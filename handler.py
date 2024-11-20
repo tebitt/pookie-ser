@@ -1,4 +1,5 @@
 import numpy as np
+from playsound import playsound
 from rate_limiter import RateLimiter
 import aiohttp
 
@@ -89,11 +90,16 @@ class Handler:
         fer_emotion = self.get_dominant_emotion_fer()
 
         self.move_eyes(fer_emotion)
-        self.speak(ser_emotion)
+        # self.speak(ser_emotion)
         self.move(fer_emotion)
 
-    def speak(self, message):
-        print(f"Speaking: {message}")
+    def speak(self, emotion):
+        audio_path = f'audio/{emotion}.wav'
+        try:
+            playsound(audio_path)
+        except Exception as e:
+            print(f"An error occurred while trying to play the audio: {e}")
+
 
     def move(self, action):
         print(f"Moving robot: {action}")
