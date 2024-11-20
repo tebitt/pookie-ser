@@ -115,9 +115,6 @@ class PredictionWorker:
                 # Store the latest prediction
                 self.latest_prediction = inference_results[0] if inference_results else None
                 # Clean up the processed file
-                handler = Handler(self.latest_prediction, None)
-                handler.speak("test")
-                handler.move("test")
                 try:
                     os.remove(audio_filename)
                 except:

@@ -1,7 +1,10 @@
 import numpy as np
-from playsound import playsound
+from pydub import AudioSegment
+from pydub.playback import play
 from rate_limiter import RateLimiter
 import aiohttp
+import asyncio
+import os
 
 class Handler:
     def __init__(self, ser_result=None, fer_result=None):
@@ -89,14 +92,16 @@ class Handler:
         ser_emotion = self.get_dominant_emotion_ser()
         fer_emotion = self.get_dominant_emotion_fer()
 
-        self.move_eyes(fer_emotion)
-        # self.speak(ser_emotion)
+        asyncio.ensure_future(self.move_eyes(fer_emotion))
+        self.speak(ser_emotion)
         self.move(fer_emotion)
 
     def speak(self, emotion):
-        audio_path = f'audio/{emotion}.wav'
+        current_path = os.getcwd()
+        audio_path = os.path.join(current_path, 'audio', f'{emotion}.wav')
         try:
-            playsound(audio_path)
+            sound = AudioSegment.from_file(audio_path)
+            play(sound)
         except Exception as e:
             print(f"An error occurred while trying to play the audio: {e}")
 
@@ -105,11 +110,11 @@ class Handler:
         print(f"Moving robot: {action}")
         # Additional behaviors based on other emotions
 
-    def move_eyes(self, expression):
+    async def move_eyes(self, expression):
         EYES_SERVER_URL = f"http://127.0.0.1:8081/set_status?mood={expression}"
         try:
-             with aiohttp.ClientSession() as session:
-                    with session.get(EYES_SERVER_URL) as response:
+             async with aiohttp.ClientSession() as session:
+                    async with session.get(EYES_SERVER_URL) as response:
                         if response.status == 200:
                             print("Eyes moved successfully")
                         else:
