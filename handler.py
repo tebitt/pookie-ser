@@ -1,12 +1,11 @@
 import numpy as np
 from pydub import AudioSegment
 from pydub.playback import play
-from rate_limiter import RateLimiter
 import aiohttp
 import asyncio
 import os
 import pygame
-from moviepy.editor import VideoFileClip
+import cv2
 
 class Handler:
     def __init__(self, ser_result=None, fer_result=None):
@@ -28,8 +27,6 @@ class Handler:
         self.fer_fear = 0.0
         self.fer_disgust = 0.0
 
-        self.rate_limiter = RateLimiter(interval_seconds=5)
-
         if ser_result:
             self.set_ser_emotions(ser_result)
 
@@ -46,9 +43,9 @@ class Handler:
         self.ser_happiness = float(ser_result['prediction']['prob'].get("happiness", 0.0))
         self.ser_sadness = float(ser_result['prediction']['prob'].get("sadness", 0.0))
         self.ser_frustration = float(ser_result['prediction']['prob'].get("frustration", 0.0))
-        self.ser_surprise = float(sum(self.ser_happiness, self.ser_sadness, self.fer_neutral)/3)
-        self.ser_fear = float(sum(self.ser_sadness, self.ser_frustration,  self.ser_anger)/3)
-        self.ser_disgust = float(sum(self.ser_anger, self.ser_surprise, self.ser_fear)/3)
+        self.ser_surprise = float(sum([self.ser_happiness, self.ser_sadness, self.fer_neutral])/3)
+        self.ser_fear = float(sum([self.ser_sadness, self.ser_frustration,  self.ser_anger])/3)
+        self.ser_disgust = float(sum([self.ser_anger, self.ser_surprise, self.ser_fear])/3)
 
     def set_fer_emotions(self, fer_result):
         """
@@ -61,7 +58,7 @@ class Handler:
         self.fer_fear = float(fer_result[0][4])
         self.fer_disgust = float(fer_result[0][5])
         self.fer_anger = float(fer_result[0][6])
-        self.fer_frustration = float(sum(self.fer_anger, self.fer_surprise, self.fer_sadness, self.fer_fear)/4)
+        self.fer_frustration = float(sum([self.fer_anger, self.fer_surprise, self.fer_sadness, self.fer_fear])/4)
 
     def get_dominant_emotion_ser(self):
         """
@@ -142,38 +139,70 @@ class Handler:
             print(f"An error occurred while trying to play the audio: {e}")
 
 
-    def play_emotion_video(emotion):
+    def move(self, emotion):
         DEMO_EXIST = ['neutral', 'sadness', 'happiness']
         if emotion not in DEMO_EXIST:
             emotion = "neutral"
 
+        # Construct the video path
         current_path = os.getcwd()
-        video_path = os.path.join(current_path, 'demo', f'{emotion}.mov')
+        if emotion == "neutral":
+            video_path = os.path.join(current_path, 'demo', f'{emotion}.mov')
+        else:
+            video_path = os.path.join(current_path, 'demo', f'{emotion}.mp4')
 
         try:
             if not os.path.exists(video_path):
                 raise FileNotFoundError(f"Video file '{video_path}' not found.")
 
+            # Initialize Pygame
             pygame.init()
-
-            clip = VideoFileClip(video_path)
-            screen = pygame.display.set_mode(clip.size)
             pygame.display.set_caption(f"Playing: {emotion}")
 
+            # Open the video file with OpenCV
+            cap = cv2.VideoCapture(video_path)
+            if not cap.isOpened():
+                raise Exception(f"Unable to open video: {video_path}")
+
+            # Get video dimensions
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS) or 30  # Default to 30 FPS if FPS is unavailable
+
+            # Create Pygame window
+            screen = pygame.display.set_mode((width, height))
+
+            # Main loop to play video
             clock = pygame.time.Clock()
-            for frame in clip.iter_frames(fps=24, dtype='uint8'):
+            while cap.isOpened():
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
+                        cap.release()
                         pygame.quit()
                         return
 
-                pygame.surfarray.blit_array(screen, frame)
-                pygame.display.flip()
-                clock.tick(24)
+                ret, frame = cap.read()
+                if not ret:
+                    break
 
+                # Convert OpenCV frame (BGR) to Pygame surface (RGB)
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame = pygame.surfarray.make_surface(frame.swapaxes(0, 1))
+
+                # Display the frame in Pygame
+                screen.blit(frame, (0, 0))
+                pygame.display.flip()
+
+                # Maintain video frame rate
+                clock.tick(fps)
+
+            # Clean up after playback
+            cap.release()
             pygame.quit()
+
         except Exception as e:
-            print(f"An error occurred while trying to play the video: {e}")
+            print(f"An error occurred: {e}")
+
 
 
         

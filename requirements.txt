@@ -224,4 +224,3 @@ pytz==2024.1
 pyyaml==7.1.1
 pydantic==2.9.1
 pygame
-moviepy
