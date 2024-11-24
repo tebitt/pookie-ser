@@ -273,9 +273,8 @@ async def main():
 
     handler = Handler()
 
-    # Initialize rate limiter for 1 request every 3 seconds
-    ser_rate_limiter = RateLimiter(interval_seconds=10)
-    handler_rate_limiter = RateLimiter(interval_seconds=5)
+    ser_rate_limiter = RateLimiter(interval_seconds=20)
+    handler_rate_limiter = RateLimiter(interval_seconds=20)
 
     
     mp_face_mesh = mp.solutions.face_mesh
