@@ -294,7 +294,7 @@ async def main():
     DICT_EMO = {0: 'Neutral', 1: 'Happiness', 2: 'Sadness', 3: 'Surprise', 4: 'Fear', 5: 'Disgust', 6: 'Anger'}
 
     async with aiohttp.ClientSession() as session:
-        cap = cv2.VideoCapture(0)
+        cap = cv2.VideoCapture(1)
         cv2.namedWindow('Emotion Detection', cv2.WINDOW_NORMAL)
         w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))

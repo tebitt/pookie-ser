@@ -125,9 +125,14 @@ class Handler:
 
         dominant_emotion = self.get_dominant_emotion(ser_emotion, fer_emotion)
 
-        asyncio.ensure_future(self.move_eyes(dominant_emotion))
-        self.speak(dominant_emotion)
-        self.move(dominant_emotion)
+        async def execute_actions():
+            await self.move_eyes(fer_emotion)  # Wait for eyes to finish moving
+            await asyncio.gather(
+                self.move(fer_emotion),
+            )
+
+        self.speak(fer_emotion)
+        asyncio.ensure_future(execute_actions())
 
     def speak(self, emotion):
         current_path = os.getcwd()
@@ -139,17 +144,14 @@ class Handler:
             print(f"An error occurred while trying to play the audio: {e}")
 
 
-    def move(self, emotion):
+    async def move(self, emotion):
         DEMO_EXIST = ['neutral', 'sadness', 'happiness']
         if emotion not in DEMO_EXIST:
             emotion = "neutral"
 
         # Construct the video path
         current_path = os.getcwd()
-        if emotion == "neutral":
-            video_path = os.path.join(current_path, 'demo', f'{emotion}.mov')
-        else:
-            video_path = os.path.join(current_path, 'demo', f'{emotion}.mp4')
+        video_path = os.path.join(current_path, 'demo', f'{emotion}.mp4')
 
         try:
             if not os.path.exists(video_path):
@@ -202,10 +204,6 @@ class Handler:
 
         except Exception as e:
             print(f"An error occurred: {e}")
-
-
-
-        
 
 
     async def move_eyes(self, expression):
